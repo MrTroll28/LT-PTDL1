@@ -1,88 +1,125 @@
+-----------------------
 import pandas as pd
-df = pd.read_csv('dulieuxettuyendaihoc.csv',
-                 header=0,delimiter=',',encoding='utf-8')
 
-df.rename(columns={'NGAYTHI':'NT',
-                   'DINHHUONGNGHENGHIEP':'NGHE'}, 
-                   inplace=True)
+df = pd.DataFrame({'Math': [4, 4, 7, 8, 12, 13, 15, 18, 22, 23, 23, 25],
+                   'Eng': [2, 5, 4, 7, 7, 8, 5, 4, 5, 11, 13, 8]})
+df.shape
+
+df['bin1'] = pd.qcut(df['Math'], q=5)
 df
 
-dfKhoiC = df.loc[df['KT'] == 'C']
-dfKhoiC['M1']
+df['bin1'].value_counts()
 
-dfKhoiC['M1'].describe()
+df['bin2'] = pd.qcut(df['Math'], q=[0, .2, .4, .6, .8, 1])
+df
 
-import scipy.stats as stats
+df['bin3'] = pd.qcut(df['Math'],
+                           q=[0, .2, .4, .6, .8, 1],
+                           labels=['A', 'B', 'C', 'D', 'E'])
+df
 
-stats.ttest_1samp(dfKhoiC['M1'], popmean=4.0)
+df['bin4'] = pd.cut(df['Eng'],
+                      bins=[0, 5, 8, float('Inf')],
+                      labels=['Bad', 'OK', 'Good'])
+df
 
-dfKhoiC = df.loc[df['KT'] == 'C']
-stats.ttest_ind(dfKhoiC['M1'], dfKhoiC['M2'], equal_var=True)
+df['bin4'].value_counts()
 
-from statsmodels.stats.weightstats import ztest as ztest
+---------------------------------------
 
-ztest(df['M1'], value=8.0)
+import pandas as pd
 
-ztest(df['M1'], df['M2'], value=0)
+gdp = [11, 22, 33, 44, 55, 66, 77]
+countries = ['Spain', 'France', 'Spain', 'Germany', 'France']
+df = pd.DataFrame(list(zip(gdp, countries)),
+                  columns=['GDP', 'Countries'])
+df
 
-from scipy.stats.stats import pearsonr
+from sklearn import preprocessing
+label_encoder = preprocessing.LabelEncoder()
+df['labelCountries']= label_encoder.fit_transform(df['Countries']) 
+df
 
-pearsonr(df['M1'], df['M2'])
+dfOneHotEncoding = pd.get_dummies(df.Countries, prefix='Country')
+print(dfOneHotEncoding.head())
 
-import scipy.stats as stats
+df = pd.concat([df, dfOneHotEncoding], axis=1)
+df
 
-crosdata = pd.crosstab(df['GT'], [df['NGHE']], rownames=['GT'], colnames=['NGHE'])
-crosdata
+from sklearn.preprocessing import LabelBinarizer
+y = LabelBinarizer().fit_transform(df.Countries)
+y
 
-odd_ratio, p_value = stats.fisher_exact(crosdata)
-print('odd ratio is : ' + str(odd_ratio))
-print('p_value is : ' + str(p_value))
+from sklearn.preprocessing import OneHotEncoder
+y = OneHotEncoder().fit_transform(df[['Countries']]).toarray()
+print(y)
 
-from scipy.stats import chi2_contingency
+---------------------------------------
+import pandas as pd
 
-crosdata = pd.crosstab(df['KV'], [df['KT']], rownames=['KV'], colnames=['KT'])
-crosdata
+year = [2010,2011,2012,2013,2014,2015]
 
-import matplotlib.pyplot as plt
-plt.pcolor(crosdata,cmap='RdBu')
-plt.colorbar()
-plt.show()
+salaryHCM = [8.5,9.0,10.5,12.0,11.0,10.0]
 
-stat, p, dof, expected = chi2_contingency(crosdata)
- 
-alpha = 0.05
-print("p value is " + str(p))
-if p <= alpha:
-    print('Dependent (reject H0)')
-else:
-    print('Independent (H0 holds true)')
+salaryLA = [5.5,6.0,6.0,5.5,6.0,5.0]
 
-import statsmodels.api as sm
-from statsmodels.formula.api import ols
+df = pd.DataFrame(list(zip(year, salaryHCM,salaryLA)),
+                  columns=['Year', 'HCM','LA'])
+df
 
-model = ols('M1 ~ GT', data=df).fit()
-aov_table = sm.stats.anova_lm(model, typ=1)
-aov_table
+max_la = df['LA'].abs().max()
+df['macLA'] = df['LA'] / max_la
 
-model = ols('M1 ~ GT + KV + GT:KV',data=df).fit()
-result = sm.stats.anova_lm(model, type=2)
-print(result)
+df
 
-import statsmodels.api as sm
-X_with_constant = sm.add_constant(df[["M1"]].values)
-y = df[['M3']].values
-result = sm.OLS(y, X_with_constant).fit()
-print(result.summary())
+from sklearn.preprocessing import MaxAbsScaler
+scaler = MaxAbsScaler()
+scaled = scaler.fit_transform(df[['HCM','LA']])
+scaled_df = pd.DataFrame(scaled, columns=df[['HCM','LA']].columns)
 
+print(scaled_df)
 
-import statsmodels.api as sm
-X_with_constant = sm.add_constant(df[["M1","M2"]].values)
-y = df[['M3']].values
-result = sm.OLS(y, X_with_constant).fit()
-print(result.summary())
+vSc = scaler.transform([[4.5,5.75]])
+vSc
 
+vR = scaler.inverse_transform([[0.5,0.8]])
+vR
 
-X = df[["M1","M2"]].values
-y = df[['M3']].values
-result = sm.OLS(y, X).fit()
-print(result.summary())
+min_la = df['LA'].min()
+max_la = df['LA'].max()
+df['mmcLA'] = (df['LA'] - min_la) / (max_la - min_la)
+
+df
+
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler()
+scaled = scaler.fit_transform(df[['HCM','LA']])
+scaled_df = pd.DataFrame(scaled, columns=df[['HCM','LA']].columns)
+
+print(scaled_df)
+
+-----------------------------
+
+mean_la = df['LA'].mean()
+std_la = df['LA'].std()
+df['zLA'] = (df['LA'] - mean_la) / std_la
+
+df
+
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+scaled = scaler.fit_transform(df[['HCM','LA']])
+
+scaled_df = pd.DataFrame(scaled, columns=df[['HCM','LA']].columns)
+
+print(scaled_df)
+
+-------------------------------
+def funcX(x):
+    return x*x + 1
+
+df['TransformX'] = funcX(df[["LA"]])
+
+df

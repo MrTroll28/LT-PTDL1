@@ -1,99 +1,88 @@
-# Thống kể dữ liệu (Mô tả dữ liệu)
+import pandas as pd
+df = pd.read_csv('dulieuxettuyendaihoc.csv',
+                 header=0,delimiter=',',encoding='utf-8')
 
-print(f'{df["M1"].min()}\n{df["M1"].max()}\n')
-print(f'{df["M1"].mean()}\n{df["M1"].median()}\n')
-print(f'{df["KT"].mode()}\n')
-print(f'{df["M1"].quantile(0.25)}\n')
+df.rename(columns={'NGAYTHI':'NT',
+                   'DINHHUONGNGHENGHIEP':'NGHE'}, 
+                   inplace=True)
+df
 
-df['M1'].max() - df['M1'].min()
+dfKhoiC = df.loc[df['KT'] == 'C']
+dfKhoiC['M1']
 
-df['M1'].quantile(0.75) - df['M1'].quantile(0.25)
+dfKhoiC['M1'].describe()
 
-np.mean(np.abs(df['M1'] - np.mean(df['M1'])))
+import scipy.stats as stats
 
-df[['M1','M2']].max() - df[['M1','M2']].min()
+stats.ttest_1samp(dfKhoiC['M1'], popmean=4.0)
 
-df['M1'].var()
+dfKhoiC = df.loc[df['KT'] == 'C']
+stats.ttest_ind(dfKhoiC['M1'], dfKhoiC['M2'], equal_var=True)
 
-df['M1'].std()
+from statsmodels.stats.weightstats import ztest as ztest
 
-print(df[['M1','M2']].mean())
-print(df[['M1','M2']].std())
+ztest(df['M1'], value=8.0)
 
-df[['M1','M2']].std()/df[['M1','M2']].mean()
+ztest(df['M1'], df['M2'], value=0)
 
-df['M1'].describe()
+from scipy.stats.stats import pearsonr
 
-df[['M1','M2','M3']].describe()
+pearsonr(df['M1'], df['M2'])
 
-cv = df[['M1','M2','M3']].std() / df[['M1','M2','M3']].mean()
-list(cv)
+import scipy.stats as stats
 
-df.groupby('GT')['M1'].describe()
+crosdata = pd.crosstab(df['GT'], [df['NGHE']], rownames=['GT'], colnames=['NGHE'])
+crosdata
 
-df.groupby('GT')['M2'].std()/df.groupby('GT')['M2'].mean()
+odd_ratio, p_value = stats.fisher_exact(crosdata)
+print('odd ratio is : ' + str(odd_ratio))
+print('p_value is : ' + str(p_value))
 
-df['M1'].hist()
+from scipy.stats import chi2_contingency
+
+crosdata = pd.crosstab(df['KV'], [df['KT']], rownames=['KV'], colnames=['KT'])
+crosdata
+
+import matplotlib.pyplot as plt
+plt.pcolor(crosdata,cmap='RdBu')
+plt.colorbar()
 plt.show()
 
-df['M1'].hist(bins=14)
-plt.show()
+stat, p, dof, expected = chi2_contingency(crosdata)
+ 
+alpha = 0.05
+print("p value is " + str(p))
+if p <= alpha:
+    print('Dependent (reject H0)')
+else:
+    print('Independent (H0 holds true)')
 
-sns.displot(df, x='M1', kind='kde')
-plt.show()
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
 
-sns.displot(data = df[['M1','M2','M3']], kind='kde')
-plt.show()
+model = ols('M1 ~ GT', data=df).fit()
+aov_table = sm.stats.anova_lm(model, typ=1)
+aov_table
 
-sns.displot(df, x='M1', hue='GT', kind='kde')
-plt.show()
+model = ols('M1 ~ GT + KV + GT:KV',data=df).fit()
+result = sm.stats.anova_lm(model, type=2)
+print(result)
 
-df['M1'].skew()
-
-df[['M1','M2','M3']].skew()
-
-df[['M1']].kurtosis()
-
-df[['M1','M2','M3']].kurtosis()
-
-sns.displot(data = df[['M1','M2']], kind='kde')
-plt.show()
-
-sns.boxplot(data=df['M1'], orient="h")
-plt.show()
-
-sns.boxplot(data=df[['M1','M2','M3']], orient='h')
-plt.show()
-
-sns.boxplot(x='M1', y='KT',data=df, orient='h')
-plt.show()
-
-sns.boxplot(x='M1', y='GT',data=df, orient='h')
-plt.show()
-
-sns.boxplot(x='KT', y='M1',hue='GT',data=df)
-plt.show()
-
-from scipy import stats
-stats.probplot(df['M1'],plot=sns.mpl.pyplot)
-plt.show()
-
-df[['M1','M2']].cov()
-
-df[['M1','M2']].corr()
-
-sns.lmplot(data=df, x='M1', y='M2', fit_reg=True)
-plt.show()
-
-df[['M1','M2','M3']].corr()
-
-sns.heatmap(df[['M1','M2','M3']].corr(), vmax=1.0, square=False).xaxis.tick_top()
-
-sns.lmplot(data=df, x='M1', y='M2',hue='GT', fit_reg=True)
-plt.show()
-
-sns.pairplot(df[['M1','M2','M3']],diag_kind='kde', kind='reg')
-plt.show()
+import statsmodels.api as sm
+X_with_constant = sm.add_constant(df[["M1"]].values)
+y = df[['M3']].values
+result = sm.OLS(y, X_with_constant).fit()
+print(result.summary())
 
 
+import statsmodels.api as sm
+X_with_constant = sm.add_constant(df[["M1","M2"]].values)
+y = df[['M3']].values
+result = sm.OLS(y, X_with_constant).fit()
+print(result.summary())
 
+
+X = df[["M1","M2"]].values
+y = df[['M3']].values
+result = sm.OLS(y, X).fit()
+print(result.summary())

@@ -1,125 +1,83 @@
------------------------
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-df = pd.DataFrame({'Math': [4, 4, 7, 8, 12, 13, 15, 18, 22, 23, 23, 25],
-                   'Eng': [2, 5, 4, 7, 7, 8, 5, 4, 5, 11, 13, 8]})
-df.shape
-
-df['bin1'] = pd.qcut(df['Math'], q=5)
+df = pd.read_excel('heart_short.xlsx',sheet_name="data")
 df
 
-df['bin1'].value_counts()
+X = df[['age','t_index','f_status','c_index']].values # input
+y = df[['target']].values # output
 
-df['bin2'] = pd.qcut(df['Math'], q=[0, .2, .4, .6, .8, 1])
-df
+X = X.astype(float)
+y = y.astype(float)
 
-df['bin3'] = pd.qcut(df['Math'],
-                           q=[0, .2, .4, .6, .8, 1],
-                           labels=['A', 'B', 'C', 'D', 'E'])
-df
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.3, random_state=16)
 
-df['bin4'] = pd.cut(df['Eng'],
-                      bins=[0, 5, 8, float('Inf')],
-                      labels=['Bad', 'OK', 'Good'])
-df
+from sklearn.neighbors import KNeighborsClassifier
+knnModel = KNeighborsClassifier(n_neighbors=5)
 
-df['bin4'].value_counts()
+knnModel.fit(X_train, y_train)
 
----------------------------------------
+y_test_predicted =knnModel.predict(X_test)
+y_test_predicted
 
-import pandas as pd
+knnModel.score(X_test, y_test)
 
-gdp = [11, 22, 33, 44, 55, 66, 77]
-countries = ['Spain', 'France', 'Spain', 'Germany', 'France']
-df = pd.DataFrame(list(zip(gdp, countries)),
-                  columns=['GDP', 'Countries'])
-df
+from sklearn.metrics import accuracy_score
+accuracy_score(y_test,y_test_predicted)
 
-from sklearn import preprocessing
-label_encoder = preprocessing.LabelEncoder()
-df['labelCountries']= label_encoder.fit_transform(df['Countries']) 
-df
+from sklearn.metrics import confusion_matrix
+cf_matrix = confusion_matrix(y_test, y_test_predicted)
 
-dfOneHotEncoding = pd.get_dummies(df.Countries, prefix='Country')
-print(dfOneHotEncoding.head())
+cf_matrix
 
-df = pd.concat([df, dfOneHotEncoding], axis=1)
-df
+def myscores(smat): 
+    tp = smat[0][0] 
+    fp = smat[0][1] 
+    fn = smat[1][0] 
+    tn = smat[1][1] 
+    vprecision = tp/(tp+fp)
+    vrecall = tp/(tp+fn)
+    vf1 = 2*(vprecision*vrecall)/(vprecision+vrecall) 
 
-from sklearn.preprocessing import LabelBinarizer
-y = LabelBinarizer().fit_transform(df.Countries)
-y
+    return vprecision,vrecall,vf1
+print("precision, recall, f1:", myscores(cf_matrix))
 
-from sklearn.preprocessing import OneHotEncoder
-y = OneHotEncoder().fit_transform(df[['Countries']]).toarray()
-print(y)
+from sklearn.metrics import classification_report
+target_names = ['Không bệnh', 'Có bệnh']
+print(classification_report(y_test, y_test_predicted, target_names=target_names))
 
----------------------------------------
-import pandas as pd
+from sklearn import metrics
 
-year = [2010,2011,2012,2013,2014,2015]
+y_pred_proba = knnModel.predict_proba(X_test)[::,1]
+fpr, tpr, _ = metrics.roc_curve(y_test,  y_pred_proba)
+auc = metrics.roc_auc_score(y_test, y_pred_proba)
+plt.plot(fpr,tpr,'go-',label="AUC="+str(auc))
+plt.plot([0,1],[0,1],'r--')
+plt.title("AUC & ROC Curve")
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend(loc=4)
+plt.fill_between(fpr, tpr, facecolor='lightgreen', alpha=0.7)
+plt.show()
 
-salaryHCM = [8.5,9.0,10.5,12.0,11.0,10.0]
+import pickle
+pickle.dump(knnModel, open('model_KNN_Heart.sav', 'wb'))
 
-salaryLA = [5.5,6.0,6.0,5.5,6.0,5.0]
+import pickle
+#Load model từ storage
+loaded_model = pickle.load(open('model_KNN_Heart.sav', 'rb'))
 
-df = pd.DataFrame(list(zip(year, salaryHCM,salaryLA)),
-                  columns=['Year', 'HCM','LA'])
-df
+v1 = float(input('age: '))
+v2 = float(input('t_index: '))
+v3 = float(input('f_status: '))
+v4 = float(input('c_index: '))
 
-max_la = df['LA'].abs().max()
-df['macLA'] = df['LA'] / max_la
+y_pred = loaded_model.predict([[v1,v2,v3,v4]])
+print('Kết quả dự báo bệnh tim: '+ str(y_pred[0]))
 
-df
-
-from sklearn.preprocessing import MaxAbsScaler
-scaler = MaxAbsScaler()
-scaled = scaler.fit_transform(df[['HCM','LA']])
-scaled_df = pd.DataFrame(scaled, columns=df[['HCM','LA']].columns)
-
-print(scaled_df)
-
-vSc = scaler.transform([[4.5,5.75]])
-vSc
-
-vR = scaler.inverse_transform([[0.5,0.8]])
-vR
-
-min_la = df['LA'].min()
-max_la = df['LA'].max()
-df['mmcLA'] = (df['LA'] - min_la) / (max_la - min_la)
-
-df
-
-from sklearn.preprocessing import MinMaxScaler
-
-scaler = MinMaxScaler()
-scaled = scaler.fit_transform(df[['HCM','LA']])
-scaled_df = pd.DataFrame(scaled, columns=df[['HCM','LA']].columns)
-
-print(scaled_df)
-
------------------------------
-
-mean_la = df['LA'].mean()
-std_la = df['LA'].std()
-df['zLA'] = (df['LA'] - mean_la) / std_la
-
-df
-
-from sklearn.preprocessing import StandardScaler
-
-scaler = StandardScaler()
-scaled = scaler.fit_transform(df[['HCM','LA']])
-
-scaled_df = pd.DataFrame(scaled, columns=df[['HCM','LA']].columns)
-
-print(scaled_df)
-
--------------------------------
-def funcX(x):
-    return x*x + 1
-
-df['TransformX'] = funcX(df[["LA"]])
-
-df
+if (y_pred[0] == 1):
+    print("Bị bệnh tim")
+else:
+    print("Không bị bệnh")
